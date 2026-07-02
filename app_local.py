@@ -1,7 +1,12 @@
 import os
 import tempfile
 import streamlit as st
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # In cloud environments (like Streamlit Cloud), environment variables/secrets are natively injected
 
 from core import analyzer, report_generator
 from core.chatbot import Chatbot
@@ -12,7 +17,6 @@ from core.ocr.factory import get_ocr_provider
 # ---------------------------------------------------------------------------
 # 1. Setup
 # ---------------------------------------------------------------------------
-load_dotenv()
 
 st.set_page_config(
     page_title="Proteccio — Sensitive Data Detector",
