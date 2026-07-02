@@ -11,8 +11,8 @@ class GroqProvider(LLMProvider):
             raise ValueError("GROQ_API_KEY environment variable not set")
         
         self.client = Groq(api_key=api_key)
-        # Llama 3 70B or 8B are great for fast, reliable compliance reporting
-        self.model = "llama3-70b-8192" 
+        # Using the recommended active replacement model for Llama 3 70B
+        self.model = "openai/gpt-oss-120b" 
 
     def complete(self, prompt: str, text: str) -> str:
         """
