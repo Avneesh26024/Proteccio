@@ -1,0 +1,6 @@
+PyMuPDF==1.28.0
+pandas
+google-genai
+streamlit
+pyyaml
+python-dotenv

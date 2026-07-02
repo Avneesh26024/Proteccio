@@ -1,5 +1,7 @@
-# pyrefly: ignore [missing-import]
-import fitz  # PyMuPDF
+try:
+    import pymupdf as fitz
+except ImportError:
+    import fitz  # PyMuPDF fallback
 import os
 import yaml
 

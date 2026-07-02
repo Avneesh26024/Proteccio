@@ -6,3 +6,5 @@ outputs/
 *.pdf
 *.csv
 *.txt
+!requirements.txt
+!requirements_local.txt

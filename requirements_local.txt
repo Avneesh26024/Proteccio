@@ -1,0 +1,6 @@
+-r requirements.txt
+docling
+rapidocr-onnxruntime
+paddlepaddle
+paddleocr
+pdf2image
