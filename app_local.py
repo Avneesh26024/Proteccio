@@ -7,6 +7,7 @@ from core import analyzer, report_generator
 from core.chatbot import Chatbot
 from core.providers.factory import get_provider
 from core.extractors import router
+from core.ocr.factory import get_ocr_provider
 
 # ---------------------------------------------------------------------------
 # 1. Setup
@@ -35,7 +36,9 @@ defaults = {
     "report":        None,
     "chatbot":       None,
     "chat_history":  [],
+    # New: two-step extraction flow
     "text_preview":  None,
+    "selected_ocr":  None,
     "tmp_file_path": None,
 }
 for key, val in defaults.items():
@@ -116,7 +119,7 @@ with col1:
             st.rerun()
 
         # -------------------------------------------------------------------
-        # Step 2: Show preview + Full Analysis button
+        # Step 2: Show preview + OCR selector + Full Analysis button
         # -------------------------------------------------------------------
         if st.session_state.text_preview is not None:
 
@@ -129,36 +132,86 @@ with col1:
                     label_visibility="collapsed",
                 )
 
+            # ------------------------------------------------------------------
+            # Auto quality check: estimate whether text layer is readable
+            # ------------------------------------------------------------------
+            sample = st.session_state.text_preview[:200].strip()
+            if sample:
+                printable_chars = sum(1 for c in sample if c.isprintable() and ord(c) < 128)
+                quality_ratio   = printable_chars / max(len(sample), 1)
+            else:
+                quality_ratio = 0.0
+
+            if quality_ratio >= 0.70:
+                st.success(
+                    "✅ **Text layer detected — extraction looks clean.**  "
+                    "Keep OCR Provider set to **None (PyMuPDF)** and proceed."
+                )
+            else:
+                st.warning(
+                    "⚠️ **Text looks scrambled or empty** — this is likely a scanned PDF.  "
+                    "Select a heavy OCR engine below before running the full analysis."
+                )
+
+            ocr_choice = st.selectbox(
+                "OCR Provider",
+                options=["None (PyMuPDF)", "paddleocr", "docling"],
+                help=(
+                    "**None (PyMuPDF)** — fast, works on text-layer PDFs.\n\n"
+                    "**paddleocr** — deep-learning OCR for scanned images.\n\n"
+                    "**docling** — IBM's document understanding engine."
+                ),
+            )
+            st.session_state.selected_ocr = ocr_choice
+
             if st.button(
                 "2. Run Full Analysis ✨",
                 type="primary",
                 help="Runs the full PII detection, masking, scoring, and LLM compliance report.",
             ):
-                tmp_path = st.session_state.tmp_file_path
-                try:
-                    with st.spinner(
-                        "Running full compliance analysis (this may take a minute)…"
-                    ):
-                        result = analyzer.analyze(
-                            tmp_path, ocr_provider=None
+                # Resolve OCR provider instance (or None for PyMuPDF)
+                provider_instance = None
+                _ocr_ok = True
+                if ocr_choice != "None (PyMuPDF)":
+                    try:
+                        provider_instance = get_ocr_provider(ocr_choice)
+                    except ImportError as ie:
+                        # Missing optional dependency — surface the install hint
+                        st.error(
+                            f"❌ **OCR dependency not installed:** {ie}\n\n"
+                            f"Run the install command shown above, then try again."
                         )
+                        _ocr_ok = False
+                    except Exception as e:
+                        st.error(f"❌ Could not load OCR provider '{ocr_choice}': {e}")
+                        _ocr_ok = False
 
-                    with st.spinner("Generating LLM compliance report…"):
-                        report = report_generator.generate(result, provider)
+                if _ocr_ok:
+                    tmp_path = st.session_state.tmp_file_path
+                    try:
+                        with st.spinner(
+                            "Running full compliance analysis (this may take a minute)…"
+                        ):
+                            result = analyzer.analyze(
+                                tmp_path, ocr_provider=provider_instance
+                            )
 
-                    bot = Chatbot(result, report, provider)
+                        with st.spinner("Generating LLM compliance report…"):
+                            report = report_generator.generate(result, provider)
 
-                    st.session_state.result        = result
-                    st.session_state.report        = report
-                    st.session_state.chatbot       = bot
-                    st.session_state.analysis_done = True
-                    # Keep tmp_file_path alive (reset_session handles cleanup)
-                    st.rerun()
+                        bot = Chatbot(result, report, provider)
 
-                except ValueError as ve:
-                    st.error(f"❌ {ve}")
-                except Exception as e:
-                    st.error(f"❌ Unexpected error: {e}")
+                        st.session_state.result        = result
+                        st.session_state.report        = report
+                        st.session_state.chatbot       = bot
+                        st.session_state.analysis_done = True
+                        # Keep tmp_file_path alive (reset_session handles cleanup)
+                        st.rerun()
+
+                    except ValueError as ve:
+                        st.error(f"❌ {ve}")
+                    except Exception as e:
+                        st.error(f"❌ Unexpected error: {e}")
 
     # -----------------------------------------------------------------------
     # PHASE B: Analysis complete — show results summary in left column
