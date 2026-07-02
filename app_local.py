@@ -26,7 +26,7 @@ st.set_page_config(
 
 # Initialize LLM Provider once
 try:
-    provider = get_provider("gemini")
+    provider = get_provider("groq")
 except Exception as e:
     st.error(f"Failed to initialize AI Provider: {e}")
     st.stop()
