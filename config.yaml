@@ -1,0 +1,23 @@
+severity_weights:
+  aadhaar: 10
+  pan: 10
+  credit_card: 10
+  bank_details: 9
+  api_key: 9
+  password: 9
+  employee_id: 6
+  confidential_text: 7
+  phone: 5
+  email: 3
+
+thresholds:
+  low: 10
+  medium: 30
+  high: 31
+
+llm_settings:
+  max_chars_for_llm: 50000
+  model: "gemini-2.5-flash-lite"
+
+pdf_settings:
+  max_pages: 50
